@@ -25,7 +25,7 @@ function authenticateToken(req, res, next) {
 app.post(
   "/register",
   [
-    body("username").isString().trim().notEmpty(),
+    body("username").isString().trim().isLength({ min: 6 }),
     body("password").isString().isLength({ min: 6 }),
   ],
   (req, res) => {
@@ -44,6 +44,7 @@ app.post(
   }
 );
 
+
 // Route: User login (JWT generation)
 app.post(
   "/login",
@@ -58,9 +59,10 @@ app.post(
     }
 
     const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: "1h" });
-    res.json({ token });
+    res.status(201).json({ jsonWebToken: token }); // Return the token in the response body
   }
 );
+
 
 // Route: Submit high score
 app.post(
@@ -79,11 +81,12 @@ app.post(
     }
 
     highScores[game].push({ username, score });
-    highScores[game].sort((a, b) => b.score - a.score); 
+    highScores[game].sort((a, b) => b.score - a.score); // Sort high scores in descending order
 
     res.status(201).json({ message: "Score submitted", highscores: highScores[game] });
   }
 );
+
 
 // Route: Get high scores for a game
 app.get("/highscores/:game", (req, res) => {
@@ -93,7 +96,6 @@ app.get("/highscores/:game", (req, res) => {
   }
   res.json({ highscores: highScores[game] });
 });
-
 
 //------ WRITE YOUR SOLUTION ABOVE THIS LINE ------//
 
