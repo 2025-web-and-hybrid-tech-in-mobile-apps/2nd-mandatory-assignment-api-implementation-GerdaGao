@@ -1,100 +1,73 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { body, validationResult } = require("express-validator");
+const bcrypt = require("bcryptjs");
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json()); // for parsing application/json
 
 // ------ WRITE YOUR SOLUTION HERE BELOW ------//
-const SECRET_KEY = "SCK1234";
-const users = {}; 
-const highScores = {};
-// Your solution should be written here
-function authenticateToken(req, res, next) {
-  const token = req.header("Authorization")?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
+// Mock database
+const users = []; // { username, passwordHash }
+const highScores = []; // { username, score }
 
-  jwt.verify(token, SECRET_KEY, (err, user) => {
-    if (err) return res.status(403).json({ error: "Forbidden" });
-    req.user = user;
-    next();
+const SECRET_KEY = "secret_key"; // Change this for production
+// Your solution should be written here
+// Signup route
+app.post("/signup", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required" });
+  }
+  const existingUser = users.find(user => user.username === username);
+  if (existingUser) {
+      return res.status(409).json({ error: "Username already exists" });
+  }
+  const passwordHash = await bcrypt.hash(password, 10);
+  users.push({ username, passwordHash });
+  res.status(201).json({ message: "User registered successfully" });
+});
+
+// Login route
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required" });
+  }
+  const user = users.find(u => u.username === username);
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      return res.status(401).json({ error: "Invalid username or password" });
+  }
+  const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: "1h" });
+  res.json({ token });
+});
+
+// Middleware for authentication
+function authenticate(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, SECRET_KEY, (err, decoded) => {
+      if (err) return res.status(403).json({ error: "Invalid token" });
+      req.user = decoded;
+      next();
   });
 }
-// Route: Register a new user
-app.post(
-  "/register",
-  [
-    body("username").isString().trim().isLength({ min: 6 }),
-    body("password").isString().isLength({ min: 6 }),
-  ],
-  (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
 
-    const { username, password } = req.body;
-    if (users[username]) {
-      return res.status(400).json({ error: "User already exists" });
-    }
-
-    users[username] = { password }; // Storing plain password (NOT recommended in real apps)
-    res.status(201).json({ message: "User registered successfully" });
+// High score route
+app.post("/hiscore", authenticate, (req, res) => {
+  const { score } = req.body;
+  if (typeof score !== "number" || score < 0) {
+      return res.status(400).json({ error: "Invalid score" });
   }
-);
+  highScores.push({ username: req.user.username, score });
+  res.json({ message: "High score submitted successfully" });
+});
 
-
-// Route: User login (JWT generation)
-app.post(
-  "/login",
-  [
-    body("username").isString().trim().notEmpty(),
-    body("password").isString().isLength({ min: 6 }),
-  ],
-  (req, res) => {
-    const { username, password } = req.body;
-    if (!users[username] || users[username].password !== password) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: "1h" });
-    res.status(201).json({ jsonWebToken: token }); // Return the token in the response body
-  }
-);
-
-
-// Route: Submit high score
-app.post(
-  "/highscores",
-  [
-    authenticateToken,
-    body("game").isString().trim().notEmpty(),
-    body("score").isInt({ min: 0 }),
-  ],
-  (req, res) => {
-    const { game, score } = req.body;
-    const username = req.user.username;
-
-    if (!highScores[game]) {
-      highScores[game] = [];
-    }
-
-    highScores[game].push({ username, score });
-    highScores[game].sort((a, b) => b.score - a.score); // Sort high scores in descending order
-
-    res.status(201).json({ message: "Score submitted", highscores: highScores[game] });
-  }
-);
-
-
-// Route: Get high scores for a game
-app.get("/highscores/:game", (req, res) => {
-  const { game } = req.params;
-  if (!highScores[game]) {
-    return res.status(404).json({ error: "No scores for this game" });
-  }
-  res.json({ highscores: highScores[game] });
+// Get high scores
+app.get("/hiscores", authenticate, (req, res) => {
+  const sortedScores = highScores.sort((a, b) => b.score - a.score);
+  res.json(sortedScores);
 });
 
 //------ WRITE YOUR SOLUTION ABOVE THIS LINE ------//
@@ -109,4 +82,5 @@ module.exports = {
   close: function () {
     serverInstance.close();
   },
+  app 
 };
