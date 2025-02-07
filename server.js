@@ -14,9 +14,10 @@ const highScores = []; // { username, score }
 const SECRET_KEY = "secret_key"; // Change this for production
 // Your solution should be written here
 // Signup route
+// Signup route
 app.post("/signup", async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) {
+  if (!username || !password || typeof username !== "string" || typeof password !== "string") {
       return res.status(400).json({ error: "Username and password are required" });
   }
   const existingUser = users.find(user => user.username === username);
@@ -31,7 +32,7 @@ app.post("/signup", async (req, res) => {
 // Login route
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) {
+  if (!username || !password || typeof username !== "string" || typeof password !== "string") {
       return res.status(400).json({ error: "Username and password are required" });
   }
   const user = users.find(u => u.username === username);
@@ -45,7 +46,9 @@ app.post("/login", async (req, res) => {
 // Middleware for authentication
 function authenticate(req, res, next) {
   const authHeader = req.headers["authorization"];
-  if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Unauthorized" });
+  }
   const token = authHeader.split(" ")[1];
   jwt.verify(token, SECRET_KEY, (err, decoded) => {
       if (err) return res.status(403).json({ error: "Invalid token" });
@@ -61,7 +64,7 @@ app.post("/hiscore", authenticate, (req, res) => {
       return res.status(400).json({ error: "Invalid score" });
   }
   highScores.push({ username: req.user.username, score });
-  res.json({ message: "High score submitted successfully" });
+  res.status(201).json({ message: "High score submitted successfully" });
 });
 
 // Get high scores
@@ -69,7 +72,6 @@ app.get("/hiscores", authenticate, (req, res) => {
   const sortedScores = highScores.sort((a, b) => b.score - a.score);
   res.json(sortedScores);
 });
-
 //------ WRITE YOUR SOLUTION ABOVE THIS LINE ------//
 
 let serverInstance = null;
