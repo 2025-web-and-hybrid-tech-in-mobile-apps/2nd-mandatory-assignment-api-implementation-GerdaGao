@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(express.json()); // for parsing application/json
+app.use(express.json());
 
 // ------ WRITE YOUR SOLUTION HERE BELOW ------//
 const JWT_SECRET = "your_secret_key"; 
@@ -12,7 +12,7 @@ const JWT_SECRET = "your_secret_key";
 const users = [];
 const highScores = [];
 
-// POST /signup
+// POST signup
 app.post("/signup", (req, res) => {
 
   const { userHandle, password } = req.body;
@@ -34,7 +34,7 @@ app.post("/signup", (req, res) => {
   res.status(201).send("User registered successfully");
 });
 
-// POST /login
+// POST login
 app.post("/login", (req, res) => {
 
   const { userHandle, password } = req.body;
@@ -95,7 +95,7 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-//POST /post high scores
+//POST post high scores
 app.post("/high-scores", (req, res, next) => {
 
   const { level, userHandle, score, timestamp } = req.body;
@@ -124,7 +124,7 @@ app.post("/high-scores", (req, res, next) => {
   res.status(201).send({ message: "High score posted successfully", highScore: newHighScore });
 });
 
-// GET /high-scores
+// GET high-scores
 app.get("/high-scores", (req, res) => {
   const { level, page = 1 } = req.query; 
   if (!level) {
